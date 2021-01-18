@@ -19,6 +19,7 @@ idx = pd.IndexSlice
 import matplotlib.pyplot as plt
 import seaborn as sns
 import backtrader as bt
+import pyfolio as pf
 import collections
 from scipy.stats import linregress
 sns.set_style('whitegrid')
@@ -137,7 +138,7 @@ class StrategyEqWt(bt.Strategy):
                  (self.p.momentum_period, self.p.num_positions, self.broker.getvalue()), doprint=False)
         
 
-if __name__ == '__main__':
+def main():
     # Model Settings
     startcash = 500000
     momentum_period = 126 #days
@@ -148,9 +149,12 @@ if __name__ == '__main__':
     
     # Commission and Slippage Settings
     commission = 0.0025
+
+    from_date=input('start date in format yyyy-mm-dd:')
+    to_date=input('end date in format yyyy-mm-dd:')
     
-    fromdate=datetime.datetime(2010, 1, 1)
-    todate=datetime.datetime(2020, 12, 24)
+    fromdate=datetime.datetime.strptime(from_date, '%Y-%m-%d')
+    todate=datetime.datetime.strptime(to_date, '%Y-%m-%d')
     
     DATA_STORE = '../../Data-Daily/india_asset.h5'
     
@@ -193,7 +197,7 @@ if __name__ == '__main__':
     cerebro.addanalyzer(bt.analyzers.Returns, _name='pfreturn')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='pfdrawdown')
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='pfsharpe')
-#    cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
+    cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
     
     cerebro.addstrategy(StrategyEqWt,
                         momentum_period = momentum_period,
@@ -207,18 +211,24 @@ if __name__ == '__main__':
     results_eq_wts = cerebro.run()
     results_eq_wt = results_eq_wts[0]
     
-    # # Run over everything
-    # cerebro.run(maxcpus=1)
+    pyfoliozer = results_eq_wt.analyzers.getbyname('pyfolio')
+    returns, positions, transactions, gross_lev = pyfoliozer.get_pf_items()
+
+    transactions.to_csv('data/transactions.csv')
+    positions.to_csv('data/positions.csv')
+    returns.to_csv('data/returns.csv')
 
     # Print out the return
-    print('Portfolio Return:', results_eq_wt.analyzers.pfreturn.get_analysis())
+    print('\nPortfolio Return:', results_eq_wt.analyzers.pfreturn.get_analysis())
 
     # Print out the drawdown
-    print('Portfolio Drawdown:', results_eq_wt.analyzers.pfdrawdown.get_analysis())
+    print('\nPortfolio Drawdown:', results_eq_wt.analyzers.pfdrawdown.get_analysis())
     
     # Print out the sharpe
-    print('Portfolio Sharpe ratio:', results_eq_wt.analyzers.pfsharpe.get_analysis())
-    
+    print('\nPortfolio Sharpe ratio:', results_eq_wt.analyzers.pfsharpe.get_analysis())
     
     # Print out the final result
-    print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+    print('\nFinal Portfolio Value: %.2f' % cerebro.broker.getvalue())
+    
+if __name__ == '__main__':
+    main()
